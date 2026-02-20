@@ -1,0 +1,81 @@
+using System;
+using System.Net.Http.Headers;
+using System.Security.Authentication;
+using Aegis.Gateway.Models;
+using Microsoft.AspNetCore.Mvc;
+
+namespace Aegis.Gateway.Middlewares;
+
+public class AuthMiddleware
+{
+    private readonly RequestDelegate _next;
+    private readonly AuthResolver _resolver;
+
+    public AuthMiddleware(RequestDelegate next, AuthResolver resolver)
+    {
+        _next = next;
+        _resolver = resolver;
+    }
+
+    public async Task InvokeAsync(HttpContext context)
+    {
+        Console.WriteLine("Autenticação Início");
+        var authorization = context.Request.Headers.Authorization;
+
+        if (!AuthenticationHeaderValue.TryParse(authorization, out var authHeader))
+        {
+            context.Response.StatusCode = 401;
+            await context.Response.WriteAsJsonAsync(
+                new ProblemDetails
+                {
+                    Type = "AuthenticationException",
+                    Title = "Unable to authenticate request",
+                    Detail = "Request header 'Authorization' can not be read."
+                }
+            );
+
+            return;
+        }
+
+        var scheme = authHeader.Scheme!;
+        var token = authHeader.Parameter!;
+
+        Console.WriteLine($"Schema: {scheme}");
+        Console.WriteLine($"Token: {token}");
+
+        try
+        {
+            var handler = _resolver.Resolve(scheme);
+            var validation = await handler.Validate(context, token);
+
+            if (!validation)
+            {
+                context.Response.StatusCode = 401;
+                await context.Response.WriteAsJsonAsync(
+                    new ProblemDetails
+                    {
+                        Type = "AuthenticationException",
+                        Title = "Invalid token",
+                        Detail = "Token invalid or expired."
+                    }
+                );
+                return;
+            }
+
+            await _next(context);
+        }
+        catch (AuthenticationSchemeNotSupportedException)
+        {
+            context.Response.StatusCode = 401;
+            await context.Response.WriteAsJsonAsync(
+                new ProblemDetails
+                {
+                    Type = "AuthenticationSchemeNotSupportedException",
+                    Title = "Unable to authenticate request",
+                    Detail = "Authentication scheme not supported yet."
+                }
+            );
+            return;
+        }
+    }
+}
