@@ -1,6 +1,8 @@
 using System;
+using Aegis.Gateway.Abstractions;
+using Aegis.Gateway.Exceptions;
 
-namespace Aegis.Gateway.Models;
+namespace Aegis.Gateway.Resolvers;
 
 public class AuthResolver
 {

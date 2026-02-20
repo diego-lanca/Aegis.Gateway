@@ -1,10 +1,11 @@
 using System;
+using Aegis.Gateway.Models;
 
-namespace Aegis.Gateway.Models;
+namespace Aegis.Gateway.Abstractions;
 
 public interface IAuthHandler
 {
     public string Scheme {get; }
 
-    public Task<bool> Validate(HttpContext context, string token);
+    public Task<AuthResult> Validate(string credential);
 }

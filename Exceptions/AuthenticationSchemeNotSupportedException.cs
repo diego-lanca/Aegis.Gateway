@@ -1,6 +1,6 @@
 using System;
 
-namespace Aegis.Gateway.Models;
+namespace Aegis.Gateway.Exceptions;
 
 public class AuthenticationSchemeNotSupportedException : Exception
 {

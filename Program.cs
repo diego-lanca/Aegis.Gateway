@@ -1,6 +1,8 @@
+using Aegis.Gateway.Abstractions;
+using Aegis.Gateway.Handlers;
 using Aegis.Gateway.Middlewares;
-using Microsoft.AspNetCore.Authentication.BearerToken;
-using Microsoft.AspNetCore.Authentication.Cookies;
+using Aegis.Gateway.Repositories;
+using Aegis.Gateway.Resolvers;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -9,6 +11,12 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
+
+builder.Services.AddTransient<IAuthHandler, BearerAuthHandler>();
+builder.Services.AddTransient<IAuthHandler, ApiKeyAuthHandler>();
+builder.Services.AddTransient<AuthResolver>();
+
+builder.Services.AddSingleton<IApiCredentialRepository, InMemoryApiCredentialRepository>();
 
 var app = builder.Build();
 
@@ -20,8 +28,6 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-
-app.UseAuthorization();
 
 app.UseMiddleware<AuthMiddleware>();
 

@@ -1,7 +1,8 @@
 using System;
 using System.Net.Http.Headers;
 using System.Security.Authentication;
-using Aegis.Gateway.Models;
+using Aegis.Gateway.Exceptions;
+using Aegis.Gateway.Resolvers;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Aegis.Gateway.Middlewares;
@@ -19,7 +20,6 @@ public class AuthMiddleware
 
     public async Task InvokeAsync(HttpContext context)
     {
-        Console.WriteLine("Autenticação Início");
         var authorization = context.Request.Headers.Authorization;
 
         if (!AuthenticationHeaderValue.TryParse(authorization, out var authHeader))
@@ -38,29 +38,26 @@ public class AuthMiddleware
         }
 
         var scheme = authHeader.Scheme!;
-        var token = authHeader.Parameter!;
-
-        Console.WriteLine($"Schema: {scheme}");
-        Console.WriteLine($"Token: {token}");
+        var credential = authHeader.Parameter!;
 
         try
         {
             var handler = _resolver.Resolve(scheme);
-            var validation = await handler.Validate(context, token);
+            var validation = await handler.Validate(credential);
 
-            if (!validation)
-            {
-                context.Response.StatusCode = 401;
-                await context.Response.WriteAsJsonAsync(
-                    new ProblemDetails
-                    {
-                        Type = "AuthenticationException",
-                        Title = "Invalid token",
-                        Detail = "Token invalid or expired."
-                    }
-                );
-                return;
-            }
+                if (!validation.IsValid)
+                {
+                    context.Response.StatusCode = 401;
+                    await context.Response.WriteAsJsonAsync(
+                        new ProblemDetails
+                        {
+                            Type = "AuthenticationException",
+                            Title = "Authentication Error",
+                            Detail = validation.ErrorMessage
+                        }
+                    );
+                    return;
+                }
 
             await _next(context);
         }
